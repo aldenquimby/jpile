@@ -1,14 +1,5 @@
 package com.opower.persistence.jpile.reflection;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.List;
-import javax.persistence.Id;
-import javax.persistence.SecondaryTable;
-import javax.persistence.SecondaryTables;
-import javax.persistence.Table;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
@@ -16,6 +7,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
+
+import javax.persistence.Id;
+import javax.persistence.SecondaryTable;
+import javax.persistence.SecondaryTables;
+import javax.persistence.Table;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
 
 import static com.google.common.collect.ImmutableList.copyOf;
 import static com.google.common.collect.ImmutableList.of;
@@ -46,9 +47,9 @@ public class PersistenceAnnotationInspector {
         return AnnotationUtils.findAnnotation(clazz, annotationType);
     }
 
-
     /**
      * Finds the annotation on a method or parent's methods.
+     * If the method is a getter, also searches for annotation on corresponding field (including superclasses).
      * Uses <code>AnnotationUtils.findAnnotation()</code> from Spring framework. Searches all subclasses and class.
      *
      * @param method         the method to look
@@ -57,7 +58,14 @@ public class PersistenceAnnotationInspector {
      * @return the annotation on the method or null if it doesn't exist
      */
     public <A extends Annotation> A findAnnotation(Method method, Class<A> annotationType) {
-        return AnnotationUtils.findAnnotation(method, annotationType);
+        A annotation = AnnotationUtils.findAnnotation(method, annotationType);
+        if (annotation == null) {
+            Field field = fieldFromMethodIfGetter(method);
+            if (field != null) {
+                annotation = field.getAnnotation(annotationType);
+            }
+        }
+        return annotation;
     }
 
     /**
@@ -234,8 +242,8 @@ public class PersistenceAnnotationInspector {
     }
 
     /**
-     * Searches for field that matches the getter following JavaBean naming conventions (eg 'getXyz'/'isXyz' corresponds with
-     * the field 'xyz'/'isXyz').
+     * Searches for field that matches the getter following JavaBean naming conventions
+     * (e.g. 'getXyz'/'isXyz' corresponds with the field 'xyz'/'isXyz').
      *
      * @param getter the getter
      * @return the field or null
@@ -261,26 +269,46 @@ public class PersistenceAnnotationInspector {
         return field;
     }
 
+    private Field fieldFromMethodIfGetter(Method method) {
+        if (method == null
+                || method.getReturnType() == null
+                || method.getParameterTypes().length > 0
+                || !method.getName().startsWith(getGetterPrefix(method))) {
+            return null;
+        }
+
+        return fieldFromGetter(method);
+    }
+
+    private <A extends Annotation> A methodOrFieldAnnotation(Method m, Class<A> annotationType) {
+        A annotation = m.getAnnotation(annotationType);
+        if (annotation == null) {
+            Field field = fieldFromMethodIfGetter(m);
+            if (field != null) {
+                annotation = field.getAnnotation(annotationType);
+            }
+        }
+        return annotation;
+    }
+
     /**
      * Looks for all methods with an annotation and returns the annotation with the method.
      *
-     * @param aClass     the class
-     * @param annotation the annotation class
-     * @param <A>        the annotation type
+     * @param aClass         the class
+     * @param annotationType the annotation class
+     * @param <A>            the annotation type
      * @return list of annotations and methods together
      */
-    public <A extends Annotation> List<AnnotatedMethod<A>> annotatedMethodsWith(Class<?> aClass, Class<A> annotation) {
+    public <A extends Annotation> List<AnnotatedMethod<A>> annotatedMethodsWith(Class<?> aClass, Class<A> annotationType) {
         List<AnnotatedMethod<A>> methods = newArrayList();
         for (Method m : ReflectionUtils.getAllDeclaredMethods(aClass)) {
-            A a = m.getAnnotation(annotation);
-            if (a != null) {
-                methods.add(new AnnotatedMethod<>(m, a));
+            A annotation = methodOrFieldAnnotation(m, annotationType);
+            if (annotation != null) {
+                methods.add(new AnnotatedMethod<>(m, annotation));
             }
         }
-
         return methods;
     }
-
 
     /**
      * Returns all methods that are annotated with multiple annotations.
@@ -296,7 +324,7 @@ public class PersistenceAnnotationInspector {
                 for (Class aClass : annotations) {
                     @SuppressWarnings("unchecked")
                     Class<? extends Annotation> a = (Class<? extends Annotation>) aClass;
-                    if (m.getAnnotation(a) == null) {
+                    if (methodOrFieldAnnotation(m, a) == null) {
                         return false;
                     }
                 }
@@ -315,7 +343,6 @@ public class PersistenceAnnotationInspector {
     public List<Method> methodsAnnotatedWith(Class<?> aClass, Predicate<Method> predicate) {
         return newArrayList(Iterables.filter(copyOf(ReflectionUtils.getAllDeclaredMethods(aClass)), predicate));
     }
-
 
     /**
      * A helper method for getting an id from a persist object with annotated @Id.

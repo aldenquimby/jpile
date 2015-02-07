@@ -10,6 +10,7 @@ import com.opower.persistence.jpile.util.JdbcUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.persistence.AttributeConverter;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -70,6 +71,7 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
     private Map<Class<?>, SingleInfileObjectLoader<Object>> secondaryTableObjectLoaders = newLinkedHashMap();
     private Map<Class<?>, Set<Method>> parentDependent = newHashMap();
     private Map<Class<?>, Set<Method>> childDependent = newHashMap();
+    private Map<Class<?>, AttributeConverter<?, ?>> attributeConverters = newHashMap();
     private Set<Class> classesToIgnore = ImmutableSet.of();
     private Set<String> secondaryClassesToIgnore = ImmutableSet.of();
     private boolean useReplace = false;
@@ -182,6 +184,7 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
                 .withDefaultTableName()
                 .withJdbcConnection(connection)
                 .usingAnnotationInspector(persistenceAnnotationInspector)
+                .withAttributeConverters(attributeConverters)
                 .useReplace(useReplace)
                 .build();
 
@@ -197,6 +200,7 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
                         .usingSecondaryTable(secondaryTable)
                         .withJdbcConnection(connection)
                         .usingAnnotationInspector(persistenceAnnotationInspector)
+                        .withAttributeConverters(attributeConverters)
                         .useReplace(useReplace)
                         .build();
 
@@ -337,6 +341,10 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
      */
     public void setUseReplace(boolean useReplace) {
         this.useReplace = useReplace;
+    }
+
+    public void registerAttributeConverters(Map<Class<?>, AttributeConverter<?, ?>> converters) {
+        attributeConverters.putAll(converters);
     }
 
     /**

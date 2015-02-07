@@ -8,6 +8,7 @@ import com.opower.persistence.jpile.infile.InfileDataBuffer;
 import com.opower.persistence.jpile.reflection.PersistenceAnnotationInspector;
 import com.opower.persistence.jpile.util.JdbcUtil;
 
+import javax.persistence.AttributeConverter;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.EmbeddedId;
@@ -39,6 +40,7 @@ public class SingleInfileObjectLoaderBuilder<E> {
     private Connection connection;
     private InfileDataBuffer infileDataBuffer;
     private PersistenceAnnotationInspector annotationInspector;
+    private Map<Class<?>, AttributeConverter<?, ?>> attributeConverters;
     private String tableName;
     private boolean defaultTableName = false;
     private boolean allowNull = false;
@@ -64,6 +66,11 @@ public class SingleInfileObjectLoaderBuilder<E> {
 
     public SingleInfileObjectLoaderBuilder<E> usingAnnotationInspector(PersistenceAnnotationInspector annotationInspector) {
         this.annotationInspector = annotationInspector;
+        return this;
+    }
+
+    public <T> SingleInfileObjectLoaderBuilder<E> withAttributeConverters(Map<Class<?>, AttributeConverter<?, ?>> converters) {
+        this.attributeConverters = converters;
         return this;
     }
 
@@ -120,6 +127,9 @@ public class SingleInfileObjectLoaderBuilder<E> {
         objectLoader.persistenceAnnotationInspector = annotationInspector;
         objectLoader.allowNull = allowNull;
         objectLoader.embedChild = embedded;
+        if (attributeConverters != null) {
+            objectLoader.attributeConverters.putAll(attributeConverters);
+        }
         if (defaultTableName) {
             this.tableName = secondaryTable != null ? secondaryTable.name() : annotationInspector.tableName(aClass);
         }
@@ -182,6 +192,7 @@ public class SingleInfileObjectLoaderBuilder<E> {
                         .withJdbcConnection(connection)
                         .withTableName(tableName)
                         .usingAnnotationInspector(annotationInspector)
+                        .withAttributeConverters(attributeConverters)
                         .allowNull()
                         .isEmbedded()
                         .build();

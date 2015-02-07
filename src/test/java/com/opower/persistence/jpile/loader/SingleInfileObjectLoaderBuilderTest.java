@@ -14,6 +14,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import javax.persistence.AttributeConverter;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import java.io.InputStreamReader;
@@ -28,7 +29,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 
 /**
  * Tests the builder for Single Infile Object Loader
@@ -176,6 +176,38 @@ public class SingleInfileObjectLoaderBuilderTest {
         }
 
         assertEquals("Enum value to append", enumObject.name(),
+                objectLoader.getEnumValueToAppend(TestClass.class.getMethod("getEnum"), enumObject));
+    }
+
+    /**
+     * Verify that an Enum {@link AttributeConverter} is used when registered.
+     */
+    @Test
+    public void testGetEnumValueToAppendWithAttributeConverter() throws Exception {
+        TestType enumObject = TestType.A;
+
+        /** Test class */
+        class TestClass {
+            @Enumerated(EnumType.ORDINAL)
+            public void getEnum() {}
+        }
+
+        final String PREFIX = "pre";
+
+        // String --> always uppercase
+        objectLoader.attributeConverters.put(Enum.class, new AttributeConverter<Enum, Object>() {
+            @Override
+            public Object convertToDatabaseColumn(Enum attribute) {
+                return attribute == null ? null : PREFIX + attribute.name();
+            }
+
+            @Override
+            public Enum convertToEntityAttribute(Object dbData) {
+                return null;
+            }
+        });
+
+        assertEquals("Enum value to append", PREFIX + enumObject.name(),
                 objectLoader.getEnumValueToAppend(TestClass.class.getMethod("getEnum"), enumObject));
     }
 }

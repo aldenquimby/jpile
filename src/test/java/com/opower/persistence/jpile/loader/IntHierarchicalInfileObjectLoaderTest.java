@@ -2,6 +2,7 @@ package com.opower.persistence.jpile.loader;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.opower.persistence.jpile.AbstractIntTestForJPile;
 import com.opower.persistence.jpile.sample.Contact;
 import com.opower.persistence.jpile.sample.Customer;
@@ -11,6 +12,7 @@ import com.opower.persistence.jpile.sample.Product;
 import org.junit.Test;
 import org.springframework.jdbc.core.RowMapper;
 
+import javax.persistence.AttributeConverter;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
@@ -196,6 +198,50 @@ public class IntHierarchicalInfileObjectLoaderTest extends AbstractIntTestForJPi
         Map<String, Object> actual = this.jdbcTemplate.queryForMap("select * from contact");
 
         assertEquals("D\ba\nv\ri\td\0D\\D\u001A", actual.get("first_name"));
+    }
+
+    @Test
+    public void testAttributeConverters() throws NoSuchAlgorithmException {
+        Data expected = new Data();
+        expected.setName("Thomas Jones");
+        expected.setMd5(toMd5(expected.getName()));
+
+        Map<Class<?>, AttributeConverter<?, ?>> converters = Maps.newHashMap();
+
+        // String --> always uppercase
+        converters.put(String.class, new AttributeConverter<String, Object>() {
+            @Override
+            public Object convertToDatabaseColumn(String attribute) {
+                return attribute == null ? null : attribute.toUpperCase();
+            }
+
+            @Override
+            public String convertToEntityAttribute(Object dbData) {
+                return null;
+            }
+        });
+
+        // byte[] --> always null
+        converters.put(byte[].class, new AttributeConverter<byte[], Object>() {
+            @Override
+            public Object convertToDatabaseColumn(byte[] attribute) {
+                return null;
+            }
+
+            @Override
+            public byte[] convertToEntityAttribute(Object dbData) {
+                return new byte[0];
+            }
+        });
+
+        this.hierarchicalInfileObjectLoader.registerAttributeConverters(converters);
+        this.hierarchicalInfileObjectLoader.persist(expected);
+        this.hierarchicalInfileObjectLoader.flush();
+
+        Map<String, Object> actual = this.jdbcTemplate.queryForMap("select * from binary_data");
+
+        assertEquals(expected.getName().toUpperCase(), actual.get("name"));
+        assertNull(actual.get("md5"));
     }
 
     private byte[] toMd5(String s) throws NoSuchAlgorithmException {

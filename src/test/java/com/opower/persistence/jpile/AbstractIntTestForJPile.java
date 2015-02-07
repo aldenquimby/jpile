@@ -1,10 +1,7 @@
 package com.opower.persistence.jpile;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.util.List;
-
 import com.google.common.base.Throwables;
+import com.opower.persistence.jpile.loader.HierarchicalInfileObjectLoader;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -18,7 +15,9 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.jdbc.SimpleJdbcTestUtils;
 
-import com.opower.persistence.jpile.loader.HierarchicalInfileObjectLoader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.List;
 
 import static com.google.common.collect.ImmutableList.of;
 
@@ -62,7 +61,7 @@ public abstract class AbstractIntTestForJPile {
 
     @Before
     public void setUp() throws Exception {
-        this.connection = DriverManager.getConnection(JDBC_URL, DB_USER, "");
+        this.connection = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASSWORD);
         this.hierarchicalInfileObjectLoader.setConnection(this.connection);
         this.jdbcTemplate = new JdbcTemplate(new SingleConnectionDataSource(this.connection, true));
     }
@@ -78,7 +77,7 @@ public abstract class AbstractIntTestForJPile {
 
     @AfterClass
     public static void dropTables() throws Exception {
-        Connection connection = DriverManager.getConnection(JDBC_URL, DB_USER, "");
+        Connection connection = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASSWORD);
         JdbcTemplate template = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
         for (String table : TABLES) {
             template.update("drop table " + table);
