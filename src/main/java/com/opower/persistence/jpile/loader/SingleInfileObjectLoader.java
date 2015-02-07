@@ -202,4 +202,18 @@ public class SingleInfileObjectLoader<E> extends InfileObjectLoader<E> {
     InfileDataBuffer getInfileDataBuffer() {
         return infileDataBuffer;
     }
+
+    /**
+     * An interface for converting particular fields into objects used by {@link InfileRow}.
+     * 
+     * @author aldenquimby@gmail.com
+     */
+    public interface FieldConverter<T> {
+        /**
+         * Gets called before appending a field to an {@link InfileRow}.
+         *
+         * @param value the field value to convert, which will never be null
+         */
+        Object convert(T value);
+    }
 }
