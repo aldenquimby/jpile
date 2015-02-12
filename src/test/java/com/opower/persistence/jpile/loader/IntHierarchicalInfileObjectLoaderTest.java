@@ -85,7 +85,7 @@ public class IntHierarchicalInfileObjectLoaderTest extends AbstractIntTestForJPi
             assertEquals(expectedProduct.getSupplier().getAddress().getStreet(), supplier.get("street"));
             assertEquals(expectedProduct.getSupplier().getAddress().getCity(), supplier.get("city"));
             assertEquals(expectedProduct.getSupplier().getAddress().getState(), supplier.get("state"));
-            assertEquals(expectedProduct.getSupplier().getAddress().getZipCode(), supplier.get("zip_code"));
+            assertEquals(expectedProduct.getSupplier().getAddress().getZipCode(), supplier.get("postal_code"));
         }
     }
 

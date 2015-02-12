@@ -49,6 +49,7 @@ public class SingleInfileObjectLoader<E> extends InfileObjectLoader<E> {
     protected boolean allowNull = false;
     protected boolean autoGenerateId = false;
     protected boolean embedChild = false;
+    protected Map<String, Column> embeddedAttributeOverrides = newHashMap();
 
     SingleInfileObjectLoader(Class<E> aClass) {
         this.aClass = aClass;

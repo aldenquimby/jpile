@@ -51,7 +51,7 @@ CREATE TABLE `supplier` (
   `street` varchar(48) NOT NULL,
   `city` varchar(48) NOT NULL,
   `state` char(2) NOT NULL,
-  `zip_code` char(5) NOT NULL,
+  `postal_code` char(5) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
