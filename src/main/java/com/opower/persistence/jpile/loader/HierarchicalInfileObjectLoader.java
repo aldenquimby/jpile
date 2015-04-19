@@ -1,5 +1,6 @@
 package com.opower.persistence.jpile.loader;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
@@ -75,7 +76,7 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
     private Set<Class> classesToIgnore = ImmutableSet.of();
     private Set<String> secondaryClassesToIgnore = ImmutableSet.of();
     private boolean useReplace = false;
-
+    private int rowBufferSize = InfileDataBuffer.DEFAULT_ROW_BUFFER_SIZE;
 
     /**
      * Disables fk (if not already disabled) and saves each object
@@ -209,7 +210,6 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
         }
     }
 
-
     private void findParentDependents(Class<?> aClass) {
         if (parentDependent.containsKey(aClass)) {
             return;
@@ -262,7 +262,7 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
     }
 
     private InfileDataBuffer newInfileDataBuffer() {
-        return new InfileDataBuffer();
+        return new InfileDataBuffer(Charsets.UTF_8, InfileDataBuffer.DEFAULT_INFILE_BUFFER_SIZE, rowBufferSize);
     }
 
     private Object invoke(Method method, Object target) {
@@ -341,6 +341,10 @@ public class HierarchicalInfileObjectLoader implements Flushable, Closeable {
      */
     public void setUseReplace(boolean useReplace) {
         this.useReplace = useReplace;
+    }
+
+    public void setRowBufferSize(int rowBufferSizeInBytes) {
+        this.rowBufferSize = rowBufferSizeInBytes;
     }
 
     public void registerAttributeConverters(Map<Class<?>, AttributeConverter<?, ?>> converters) {
