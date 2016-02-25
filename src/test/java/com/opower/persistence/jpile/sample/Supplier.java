@@ -1,5 +1,7 @@
 package com.opower.persistence.jpile.sample;
 
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.Entity;
@@ -40,6 +42,9 @@ public class Supplier {
     }
 
     @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "zipCode", column = @Column(name = "postal_code"))
+    })
     public Address getAddress() {
         return address;
     }

@@ -49,6 +49,7 @@ public class SingleInfileObjectLoader<E> extends InfileObjectLoader<E> {
     protected boolean allowNull = false;
     protected boolean autoGenerateId = false;
     protected boolean embedChild = false;
+    protected Map<String, Column> embeddedAttributeOverrides = newHashMap();
 
     SingleInfileObjectLoader(Class<E> aClass) {
         this.aClass = aClass;
@@ -201,5 +202,19 @@ public class SingleInfileObjectLoader<E> extends InfileObjectLoader<E> {
     @VisibleForTesting
     InfileDataBuffer getInfileDataBuffer() {
         return infileDataBuffer;
+    }
+
+    /**
+     * An interface for converting particular fields into objects used by {@link InfileRow}.
+     * 
+     * @author aldenquimby@gmail.com
+     */
+    public interface FieldConverter<T> {
+        /**
+         * Gets called before appending a field to an {@link InfileRow}.
+         *
+         * @param value the field value to convert, which will never be null
+         */
+        Object convert(T value);
     }
 }

@@ -33,7 +33,7 @@ import static junit.framework.Assert.assertEquals;
 @IfProfileValue(name = "performance", value = "true")
 public class IntPerformanceHierarchicalInfileObjectLoaderTest extends AbstractIntTestForJPile {
     private static final String CUSTOMER_SQL = "insert into customer (last_seen_on, type) values (?, ?)";
-    private static final String SUPPLIER_SQL = "insert supplier (name, street_number, street, city, state, zip_code) " +
+    private static final String SUPPLIER_SQL = "insert supplier (name, street_number, street, city, state, postal_code) " +
             "values (?, ?, ?, ?, ?, ?)";
     private static final String PRODUCT_SQL
             = "insert into product (customer_id, purchased_on, title, description, price, packaging, supplier_id) " +

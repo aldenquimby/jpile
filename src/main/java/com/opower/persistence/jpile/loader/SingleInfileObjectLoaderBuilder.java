@@ -4,11 +4,14 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.opower.persistence.jpile.infile.InfileDataBuffer;
 import com.opower.persistence.jpile.reflection.PersistenceAnnotationInspector;
 import com.opower.persistence.jpile.util.JdbcUtil;
 
 import javax.persistence.AttributeConverter;
+import javax.persistence.AttributeOverride;
+import javax.persistence.AttributeOverrides;
 import javax.persistence.Column;
 import javax.persistence.Embedded;
 import javax.persistence.EmbeddedId;
@@ -20,6 +23,7 @@ import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.SecondaryTable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -46,8 +50,8 @@ public class SingleInfileObjectLoaderBuilder<E> {
     private boolean allowNull = false;
     private boolean embedded = false;
     private boolean useReplace = false;
+    private Map<String, Column> embeddedAttributeOverrides;
     private SecondaryTable secondaryTable;
-
 
     public SingleInfileObjectLoaderBuilder(Class<E> aClass) {
         Preconditions.checkNotNull(aClass, "Class cannot be null");
@@ -106,8 +110,9 @@ public class SingleInfileObjectLoaderBuilder<E> {
     }
 
 
-    private SingleInfileObjectLoaderBuilder<E> isEmbedded() {
+    private SingleInfileObjectLoaderBuilder<E> isEmbedded(Map<String, Column> embeddedAttributeOverrides) {
         this.embedded = true;
+        this.embeddedAttributeOverrides = embeddedAttributeOverrides;
         return this;
     }
 
@@ -129,6 +134,9 @@ public class SingleInfileObjectLoaderBuilder<E> {
         objectLoader.embedChild = embedded;
         if (attributeConverters != null) {
             objectLoader.attributeConverters.putAll(attributeConverters);
+        }
+        if (embeddedAttributeOverrides != null) {
+            objectLoader.embeddedAttributeOverrides.putAll(embeddedAttributeOverrides);
         }
         if (defaultTableName) {
             this.tableName = secondaryTable != null ? secondaryTable.name() : annotationInspector.tableName(aClass);
@@ -153,17 +161,26 @@ public class SingleInfileObjectLoaderBuilder<E> {
         for (PersistenceAnnotationInspector.AnnotatedMethod<Column> annotatedMethod
                 : annotationInspector.annotatedMethodsWith(aClass, Column.class)) {
 
-            Preconditions.checkState(!annotatedMethod.getAnnotation().name().isEmpty(),
-                                     "@Column.name is not found on method [%s]",
-                                     annotatedMethod.getMethod());
             Column column = annotatedMethod.getAnnotation();
+
+            // use Column from AttributeOverride if we have one
+            if (secondaryTable == null && (column.table().isEmpty() || column.table().equals(this.tableName))) {
+                Field field = annotationInspector.fieldFromGetter(annotatedMethod.getMethod());
+                if (field != null && objectLoader.embeddedAttributeOverrides.containsKey(field.getName())) {
+                    column = objectLoader.embeddedAttributeOverrides.get(field.getName());
+                }
+            }
+
+            Preconditions.checkState(!column.name().isEmpty(),
+                    "@Column.name is not found on method [%s]", annotatedMethod.getMethod());
+
             if (secondaryTable != null) {
                 if (column.table().equals(this.tableName)) {
-                    objectLoader.mappings.put(annotatedMethod.getAnnotation().name(), annotatedMethod.getMethod());
+                    objectLoader.mappings.put(column.name(), annotatedMethod.getMethod());
                 }
             }
             else if (column.table().isEmpty() || column.table().equals(this.tableName)) {
-                objectLoader.mappings.put(annotatedMethod.getAnnotation().name(), annotatedMethod.getMethod());
+                objectLoader.mappings.put(column.name(), annotatedMethod.getMethod());
             }
         }
 
@@ -194,11 +211,22 @@ public class SingleInfileObjectLoaderBuilder<E> {
                         .usingAnnotationInspector(annotationInspector)
                         .withAttributeConverters(attributeConverters)
                         .allowNull()
-                        .isEmbedded()
+                        .isEmbedded(this.embeddedAttributeOverrides(method))
                         .build();
                 objectLoader.embeds.put(method, embededObjectLoader);
             }
         }
+    }
+
+    private Map<String, Column> embeddedAttributeOverrides(Method method) {
+        Map<String, Column> embeddedOverrides = Maps.newHashMap();
+        AttributeOverrides overrides = annotationInspector.findAnnotation(method, AttributeOverrides.class);
+        if (overrides != null) {
+            for (AttributeOverride override : overrides.value()) {
+                embeddedOverrides.put(override.name(), override.column());
+            }
+        }
+        return embeddedOverrides;
     }
 
     private String findPrimaryIdColumnName(SingleInfileObjectLoader<E> objectLoader) {
